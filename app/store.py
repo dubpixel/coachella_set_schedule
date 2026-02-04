@@ -18,7 +18,7 @@ _schedule: list[Act] = [
     Act(
         act_name="Neon Mirage",
         scheduled_start=time(14, 0),
-        scheduled_end=time(15, 0),
+        scheduled_end=time(14, 45),
     ),
     Act(
         act_name="Cosmic Wanderers",

@@ -2,8 +2,8 @@
      id="act-{{ act.act_name | replace(' ', '-') }}"
      data-scheduled-start="{{ act.scheduled_start.strftime('%H:%M') }}"
      data-scheduled-end="{{ act.scheduled_end.strftime('%H:%M') }}"
-     data-has-actual-start="{{ 'true' if act.actual_start else 'false' }}"
-     data-has-actual-end="{{ 'true' if act.actual_end else 'false' }}">
+     data-actual-start="{{ act.actual_start.strftime('%H:%M:%S') if act.actual_start else '' }}"
+     data-actual-end="{{ act.actual_end.strftime('%H:%M:%S') if act.actual_end else '' }}">
     <div class="act-status-indicator">
         {% if act.is_in_progress() %}
             <span class="status-dot status-live"></span>

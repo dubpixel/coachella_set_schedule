@@ -28,7 +28,7 @@
                 <span class="brightness-label">Brightness:</span>
                 <span class="brightness-value" x-text="brightness + ' nits'"></span>
             </div>
-            <div class="slip-display" :class="{ 'slip-warning': slip > 0 }">
+            <div class="slip-display" :class="{ 'slip-warning': slip > 0, 'slip-ahead': slip < 0 }">
                 <span class="slip-label">Slip:</span>
                 <span class="slip-value" x-text="formatSlip(slip)"></span>
             </div>
@@ -150,16 +150,45 @@ function scheduleApp() {
                     hour12: false
                 });
             }
+            this.calculateSlip();
             this.checkActAlerts();
             this.updateNowPlaying();
         },
 
         timeToSeconds(timeStr) {
+            if (!timeStr) return null;
             const parts = timeStr.split(':');
             const hours = parseInt(parts[0]);
             const mins = parseInt(parts[1]);
             const secs = parts[2] ? parseInt(parts[2]) : 0;
             return hours * 3600 + mins * 60 + secs;
+        },
+
+        calculateSlip() {
+            const currentSecs = this.timeToSeconds(this.currentTime);
+            let slip = 0;
+
+            document.querySelectorAll('.act-row').forEach(row => {
+                const scheduledStart = this.timeToSeconds(row.dataset.scheduledStart);
+                const scheduledEnd = this.timeToSeconds(row.dataset.scheduledEnd);
+                const actualStart = this.timeToSeconds(row.dataset.actualStart);
+                const actualEnd = this.timeToSeconds(row.dataset.actualEnd);
+
+                if (actualEnd !== null) {
+                    // Completed act: slip is how early/late it ended
+                    slip = actualEnd - scheduledEnd;
+                } else if (actualStart !== null) {
+                    if (currentSecs > scheduledEnd) {
+                        // In-progress act past scheduled end: show actual overtime
+                        slip = currentSecs - scheduledEnd;
+                    } else {
+                        // In-progress within scheduled time: show start variance
+                        slip = actualStart - scheduledStart;
+                    }
+                }
+            });
+
+            this.slip = slip;
         },
 
         checkActAlerts() {
@@ -169,8 +198,8 @@ function scheduleApp() {
             document.querySelectorAll('.act-row').forEach(row => {
                 const startSecs = this.timeToSeconds(row.dataset.scheduledStart);
                 const endSecs = this.timeToSeconds(row.dataset.scheduledEnd);
-                const hasStart = row.dataset.hasActualStart === 'true';
-                const hasEnd = row.dataset.hasActualEnd === 'true';
+                const hasStart = row.dataset.actualStart !== '';
+                const hasEnd = row.dataset.actualEnd !== '';
 
                 row.classList.remove('flash-warning', 'flash-danger', 'act-live', 'act-live-ending');
 
@@ -205,8 +234,8 @@ function scheduleApp() {
                 const actName = row.querySelector('.act-name').textContent;
                 const scheduledStart = row.dataset.scheduledStart;
                 const scheduledEnd = row.dataset.scheduledEnd;
-                const hasActualStart = row.dataset.hasActualStart === 'true';
-                const hasActualEnd = row.dataset.hasActualEnd === 'true';
+                const hasActualStart = row.dataset.actualStart !== '';
+                const hasActualEnd = row.dataset.actualEnd !== '';
 
                 const startSeconds = this.timeToSeconds(scheduledStart);
                 const endSeconds = this.timeToSeconds(scheduledEnd);
@@ -280,17 +309,14 @@ function scheduleApp() {
 
         formatSlip(seconds) {
             if (seconds === 0) return 'On Time';
-            const mins = Math.floor(Math.abs(seconds) / 60);
-            const secs = Math.abs(seconds) % 60;
-            const sign = seconds > 0 ? '+' : '-';
+            const abs = Math.abs(seconds);
+            const mins = Math.floor(abs / 60);
+            const secs = abs % 60;
+            const suffix = seconds > 0 ? ' late' : ' early';
             if (mins > 0) {
-                return `${sign}${mins}m ${secs}s`;
+                return `${mins}m ${secs}s${suffix}`;
             }
-            return `${sign}${secs}s`;
-        },
-
-        updateSlip(newSlip) {
-            this.slip = newSlip;
+            return `${secs}s${suffix}`;
         },
 
         confirm(message, url) {

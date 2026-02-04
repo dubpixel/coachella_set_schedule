@@ -107,6 +107,10 @@ body {
     color: var(--variance-late);
 }
 
+.slip-ahead .slip-value {
+    color: var(--variance-early);
+}
+
 /* Now Playing / Up Next Section */
 .now-playing-section {
     background-color: var(--bg-secondary);

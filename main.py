@@ -142,16 +142,12 @@ def build_schedule_html(acts, view_only: bool) -> str:
 async def broadcast_schedule_update():
     """Broadcast the updated schedule to all connected clients."""
     acts = store.get_schedule()
-    slip = calculate_slip(acts)
 
     # Build HTML for viewers (no buttons) and editors (with buttons)
     viewer_html = build_schedule_html(acts, view_only=True)
     editor_html = build_schedule_html(acts, view_only=False)
 
-    # Also include slip update via Alpine.js
-    slip_script = f'<script>document.querySelector("[x-data]").__x.$data.slip = {slip};</script>'
-
-    await manager.broadcast_schedule(viewer_html + slip_script, editor_html + slip_script)
+    await manager.broadcast_schedule(viewer_html, editor_html)
 
 
 @app.websocket("/ws")
