@@ -19,7 +19,6 @@ artnet_listener: Optional["ArtNetListener"] = None
 
 async def on_brightness_change(value: int) -> None:
     """Callback for Art-Net brightness value changes."""
-    print(f"[Debug] Broadcasting brightness: {value}")
     await manager.broadcast_brightness(value)
 
 
@@ -28,10 +27,6 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown."""
     global artnet_listener
 
-    # Startup
-    import os
-    print(f"[Debug] ARTNET_ENABLED env var: {os.getenv('ARTNET_ENABLED')}")
-    print(f"[Debug] settings.ARTNET_ENABLED: {settings.ARTNET_ENABLED}")
     if settings.ARTNET_ENABLED:
         from app.artnet import ArtNetListener
         artnet_listener = ArtNetListener(

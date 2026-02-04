@@ -56,8 +56,8 @@ class ArtNetListener:
             lambda: ArtNetProtocol(self),
             local_addr=("0.0.0.0", self.port),
         )
-        print(f"[ArtNet] Listener started on port {self.port}, universe {self.universe}, "
-              f"channels {self.channel_high} (high) / {self.channel_low} (low)")
+        logger.info(f"Art-Net listener started on port {self.port}, universe {self.universe}, "
+                    f"channels {self.channel_high} (high) / {self.channel_low} (low)")
 
     def stop(self) -> None:
         """Stop listening for Art-Net packets."""
@@ -152,26 +152,9 @@ class ArtNetProtocol(asyncio.DatagramProtocol):
 
     def datagram_received(self, data: bytes, addr: tuple) -> None:
         """Called when a UDP packet is received."""
-        print(f"[ArtNet] UDP packet: {len(data)} bytes from {addr}")
         value_16bit = self.listener.parse_packet(data)
         if value_16bit is not None:
-            nits = calculate_nits(value_16bit)
-            print(f"[ArtNet] Channels {self.listener.channel_high}/{self.listener.channel_low} "
-                  f"= {value_16bit} (16-bit) -> {nits} nits")
-            # Schedule the async callback
             asyncio.create_task(self.listener.handle_value(value_16bit))
-        elif len(data) >= 8:
-            # Log why packet was ignored
-            header = data[:8]
-            if header == ARTNET_HEADER and len(data) >= 10:
-                opcode = int.from_bytes(data[8:10], byteorder="little")
-                if opcode != ARTNET_OPCODE_DMX:
-                    print(f"[ArtNet] Ignoring opcode 0x{opcode:04x}")
-                elif len(data) >= 16:
-                    universe = int.from_bytes(data[14:16], byteorder="little")
-                    print(f"[ArtNet] Ignoring universe {universe} (listening for {self.listener.universe})")
-            else:
-                print(f"[ArtNet] Not an Art-Net packet (header: {header[:8]})")
 
     def error_received(self, exc: Exception) -> None:
         """Called when a send or receive error occurs."""

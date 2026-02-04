@@ -154,11 +154,6 @@ function scheduleApp() {
             this.updateNowPlaying();
         },
 
-        timeToMinutes(timeStr) {
-            const parts = timeStr.split(':');
-            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-        },
-
         timeToSeconds(timeStr) {
             const parts = timeStr.split(':');
             const hours = parseInt(parts[0]);
@@ -168,39 +163,27 @@ function scheduleApp() {
         },
 
         checkActAlerts() {
-            const currentMinutes = this.timeToMinutes(this.currentTime);
-            const actRows = document.querySelectorAll('.act-row');
+            const currentSecs = this.timeToSeconds(this.currentTime);
+            const fiveMin = 300;
 
-            actRows.forEach(row => {
-                const scheduledStart = row.dataset.scheduledStart;
-                const scheduledEnd = row.dataset.scheduledEnd;
-                const hasActualStart = row.dataset.hasActualStart === 'true';
-                const hasActualEnd = row.dataset.hasActualEnd === 'true';
+            document.querySelectorAll('.act-row').forEach(row => {
+                const startSecs = this.timeToSeconds(row.dataset.scheduledStart);
+                const endSecs = this.timeToSeconds(row.dataset.scheduledEnd);
+                const hasStart = row.dataset.hasActualStart === 'true';
+                const hasEnd = row.dataset.hasActualEnd === 'true';
 
-                const startMinutes = this.timeToMinutes(scheduledStart);
-                const endMinutes = this.timeToMinutes(scheduledEnd);
-
-                // Remove existing alert classes
                 row.classList.remove('flash-warning', 'flash-danger', 'act-live', 'act-live-ending');
 
-                // Flash yellow: within 5 min of start, no actual start recorded
-                if (!hasActualStart && currentMinutes >= startMinutes - 5 && currentMinutes < endMinutes) {
+                if (!hasStart && currentSecs >= startSecs - fiveMin && currentSecs < endSecs) {
                     row.classList.add('flash-warning');
-                }
-
-                // Green: act in progress and within scheduled time
-                if (hasActualStart && !hasActualEnd && currentMinutes < endMinutes) {
-                    // Flash green if within 5 min of end
-                    if (currentMinutes >= endMinutes - 5) {
+                } else if (hasStart && !hasEnd) {
+                    if (currentSecs >= endSecs) {
+                        row.classList.add('flash-danger');
+                    } else if (currentSecs >= endSecs - fiveMin) {
                         row.classList.add('act-live-ending');
                     } else {
                         row.classList.add('act-live');
                     }
-                }
-
-                // Flash red: past end time, started but no actual end recorded
-                if (hasActualStart && !hasActualEnd && currentMinutes >= endMinutes) {
-                    row.classList.add('flash-danger');
                 }
             });
         },
