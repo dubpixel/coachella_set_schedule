@@ -22,7 +22,9 @@ venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 venv/bin/uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Access the app at http://localhost:8000
+Access the app:
+- **View-only:** http://localhost:8000 — schedule display without controls
+- **Operator:** http://localhost:8000/edit — full controls for recording times
 
 ## Stopping the Server
 
@@ -38,6 +40,7 @@ pkill -f "uvicorn main:app"
 - Live clock display
 - Slip tracking (accumulated lateness)
 - Record actual start/end times for each act
-- Real-time sync across multiple browser windows via WebSocket
-- Mobile-friendly custom confirmation dialogs (immune to browser "prevent dialogs" setting)
-- Dark theme UI
+- Real-time sync across all clients via WebSocket
+- View-only mode for spectators, edit mode for operators
+- Hide/show completed acts toggle
+- Mobile-friendly dark theme UI
