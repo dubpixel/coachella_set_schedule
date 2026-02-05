@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
@@ -8,13 +9,31 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app import store
 from app.config import settings
+
+if settings.USE_GOOGLE_SHEETS:
+    from app import sheets as store
+else:
+    from app import store
 from app.slip import calculate_slip, format_variance
 from app.websocket import manager
 
 # Art-Net listener (initialized on startup if enabled)
 artnet_listener: Optional["ArtNetListener"] = None
+
+# Background polling task
+_polling_task: Optional[asyncio.Task] = None
+POLL_INTERVAL_SECONDS = 30
+
+
+async def poll_schedule():
+    """Periodically fetch schedule from Google Sheets and broadcast updates."""
+    while True:
+        await asyncio.sleep(POLL_INTERVAL_SECONDS)
+        try:
+            await broadcast_schedule_update()
+        except Exception as e:
+            print(f"Error polling schedule: {e}")
 
 
 async def on_brightness_change(value: int) -> None:
@@ -25,7 +44,7 @@ async def on_brightness_change(value: int) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown."""
-    global artnet_listener
+    global artnet_listener, _polling_task
 
     if settings.ARTNET_ENABLED:
         from app.artnet import ArtNetListener
@@ -38,9 +57,19 @@ async def lifespan(app: FastAPI):
         )
         await artnet_listener.start()
 
+    # Start background polling for schedule updates
+    _polling_task = asyncio.create_task(poll_schedule())
+
     yield
 
     # Shutdown
+    if _polling_task:
+        _polling_task.cancel()
+        try:
+            await _polling_task
+        except asyncio.CancelledError:
+            pass
+
     if artnet_listener:
         artnet_listener.stop()
 

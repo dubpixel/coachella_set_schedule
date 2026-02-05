@@ -8,8 +8,10 @@ load_dotenv()
 class Settings:
     """Application settings loaded from environment variables."""
 
-    # Google Sheets configuration (for future integration)
+    # Google Sheets configuration
+    USE_GOOGLE_SHEETS: bool = os.getenv("USE_GOOGLE_SHEETS", "false").lower() == "true"
     GOOGLE_SHEETS_ID: str = os.getenv("GOOGLE_SHEETS_ID", "")
+    GOOGLE_SHEET_TAB: str = os.getenv("GOOGLE_SHEET_TAB", "")
     GOOGLE_SERVICE_ACCOUNT_FILE: str = os.getenv(
         "GOOGLE_SERVICE_ACCOUNT_FILE",
         str(Path.home() / ".config" / "gcloud" / "service-account.json")
