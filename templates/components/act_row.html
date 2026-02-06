@@ -28,6 +28,7 @@
                     {{ act.actual_end.strftime('%H:%M') if act.actual_end else '—' }})
                 </span>
             {% endif %}
+            <span class="act-countdown"></span>
         </div>
         {% if act.start_variance is not none or act.end_variance is not none %}
             <div class="act-variance">

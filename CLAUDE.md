@@ -27,7 +27,7 @@ No build step required - HTMX and Alpine.js loaded via CDN script tags.
 1. FastAPI renders schedule page via Jinja2 templates
 2. HTMX WebSocket (`hx-ws`) keeps all operators in sync
 3. "Record Now" button sends time via HTMX, FastAPI broadcasts to all clients
-4. Alpine.js handles live clock and computed slip values client-side
+4. Alpine.js handles live clock, computed slip values, per-act countdowns, and act alerts client-side
 5. Actual times written to Google Sheets for persistence
 6. Background task polls Google Sheets every 30 seconds and broadcasts updates to all clients
 
@@ -106,3 +106,13 @@ The app polls Google Sheets every 30 seconds (configurable via `POLL_INTERVAL_SE
 - Slip formula: `projected_start[i] = scheduled_start[i] + slip`
 - Conflict resolution: last-write-wins with timestamp
 - Timezone: Festival local time only (PDT for Coachella)
+
+## Client-Side Timer Architecture
+
+The `updateTime()` method runs every second and is the single entry point for all per-tick logic. It queries `.act-row` elements once, parses their `data-*` attributes into a shared `acts` array, then passes `(currentSecs, acts)` to:
+- `calculateSlip()` — computes accumulated slip from actual vs scheduled times
+- `checkActAlerts()` — applies flash/warning CSS classes
+- `updateNowPlaying()` — renders the now-playing/up-next banner
+- `updateCountdowns()` — shows `[Starts in X:XX]` for future acts, hidden once started or past scheduled time
+
+After WebSocket HTML swaps (from Google Sheets polling), `htmx:wsAfterMessage` triggers `updateTime()` to immediately re-apply countdowns and alerts before the browser paints. Use `htmx:wsAfterMessage` (not `htmx:afterSwap` or `htmx:afterSettle`) for flicker-free post-swap updates.

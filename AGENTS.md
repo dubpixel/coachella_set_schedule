@@ -7,10 +7,11 @@
 - `CLAUDE.md`: agent-focused overview of the intended architecture.
 - `secret/`: reserved for local-only materials (keep empty in git; do not commit credentials).
 
-Planned code layout (once scaffolding lands):
-- `frontend/`: web UI (single-stage schedule board).
-- `backend/`: API + WebSocket sync service.
-- `*/tests/`: tests colocated per layer.
+Code layout:
+- `main.py`: FastAPI app entry point, background Google Sheets polling.
+- `app/`: server-side modules (config, models, slip logic, sheets integration, WebSocket manager, Art-Net listener).
+- `templates/`: Jinja2 templates — `index.html` (main view + Alpine.js app), `components/act_row.html` (per-act partial).
+- `static/styles.css`: dark theme styles.
 
 ## Build, Test, and Development Commands
 
@@ -35,6 +36,8 @@ venv/bin/uvicorn main:app --reload --host 0.0.0.0 --port 8000
 - Keep changes small and focused; avoid drive-by refactors.
 - Prefer descriptive names matching the PRD vocabulary: `scheduled_start`, `actual_end`, `slip`, `projected_break`.
 - Use consistent time units and document them (seconds vs milliseconds) at module boundaries.
+- Client-side timers: all per-second logic runs through `updateTime()` which queries the DOM once and passes parsed data to sub-methods. Do not add separate `querySelectorAll('.act-row')` calls — use the shared `acts` array.
+- For post-WebSocket-swap JS, use `htmx:wsAfterMessage` (not `afterSwap`/`afterSettle`) to avoid flicker.
 - Formatting/linting tools are TBD; if you add one, wire it into CI and document how to run it locally.
 
 ## Testing Guidelines

@@ -83,6 +83,7 @@ function scheduleApp() {
             setInterval(() => this.updateTime(), 1000);
             this.fetchBrightness();
             this.setupBrightnessListener();
+            document.body.addEventListener('htmx:wsAfterMessage', () => this.updateTime());
             // Make now-playing section sticky on Chrome iOS to avoid scroll bug
             if (/CriOS/.test(navigator.userAgent)) {
                 const section = document.getElementById('now-playing-section');
@@ -127,9 +128,25 @@ function scheduleApp() {
                     hour12: false
                 });
             }
-            this.calculateSlip();
-            this.checkActAlerts();
-            this.updateNowPlaying();
+
+            const currentSecs = this.timeToSeconds(this.currentTime);
+            const acts = [];
+            document.querySelectorAll('.act-row').forEach(row => {
+                acts.push({
+                    row,
+                    scheduledStart: this.timeToSeconds(row.dataset.scheduledStart),
+                    scheduledEnd: this.timeToSeconds(row.dataset.scheduledEnd),
+                    actualStart: this.timeToSeconds(row.dataset.actualStart),
+                    actualEnd: this.timeToSeconds(row.dataset.actualEnd),
+                    hasActualStart: row.dataset.actualStart !== '',
+                    hasActualEnd: row.dataset.actualEnd !== '',
+                });
+            });
+
+            this.calculateSlip(currentSecs, acts);
+            this.checkActAlerts(currentSecs, acts);
+            this.updateNowPlaying(currentSecs, acts);
+            this.updateCountdowns(currentSecs, acts);
         },
 
         timeToSeconds(timeStr) {
@@ -141,65 +158,50 @@ function scheduleApp() {
             return hours * 3600 + mins * 60 + secs;
         },
 
-        calculateSlip() {
-            const currentSecs = this.timeToSeconds(this.currentTime);
+        calculateSlip(currentSecs, acts) {
             let slip = 0;
 
-            document.querySelectorAll('.act-row').forEach(row => {
-                const scheduledStart = this.timeToSeconds(row.dataset.scheduledStart);
-                const scheduledEnd = this.timeToSeconds(row.dataset.scheduledEnd);
-                const actualStart = this.timeToSeconds(row.dataset.actualStart);
-                const actualEnd = this.timeToSeconds(row.dataset.actualEnd);
-
-                if (actualEnd !== null) {
+            for (const act of acts) {
+                if (act.actualEnd !== null) {
                     // Completed act: slip is how early/late it ended
-                    slip = actualEnd - scheduledEnd;
-                } else if (actualStart !== null) {
-                    if (currentSecs > scheduledEnd) {
+                    slip = act.actualEnd - act.scheduledEnd;
+                } else if (act.actualStart !== null) {
+                    if (currentSecs > act.scheduledEnd) {
                         // In-progress act past scheduled end: show actual overtime
-                        slip = currentSecs - scheduledEnd;
+                        slip = currentSecs - act.scheduledEnd;
                     } else {
                         // In-progress within scheduled time: show start variance
-                        slip = actualStart - scheduledStart;
+                        slip = act.actualStart - act.scheduledStart;
                     }
                 }
-            });
+            }
 
             this.slip = slip;
         },
 
-        checkActAlerts() {
-            const currentSecs = this.timeToSeconds(this.currentTime);
+        checkActAlerts(currentSecs, acts) {
             const fiveMin = 300;
 
-            document.querySelectorAll('.act-row').forEach(row => {
-                const startSecs = this.timeToSeconds(row.dataset.scheduledStart);
-                const endSecs = this.timeToSeconds(row.dataset.scheduledEnd);
-                const hasStart = row.dataset.actualStart !== '';
-                const hasEnd = row.dataset.actualEnd !== '';
+            for (const act of acts) {
+                act.row.classList.remove('flash-warning', 'flash-danger', 'act-live', 'act-live-ending');
 
-                row.classList.remove('flash-warning', 'flash-danger', 'act-live', 'act-live-ending');
-
-                if (!hasStart && currentSecs >= startSecs - fiveMin && currentSecs < endSecs) {
-                    row.classList.add('flash-warning');
-                } else if (hasStart && !hasEnd) {
-                    if (currentSecs >= endSecs) {
-                        row.classList.add('flash-danger');
-                    } else if (currentSecs >= endSecs - fiveMin) {
-                        row.classList.add('act-live-ending');
+                if (!act.hasActualStart && currentSecs >= act.scheduledStart - fiveMin && currentSecs < act.scheduledEnd) {
+                    act.row.classList.add('flash-warning');
+                } else if (act.hasActualStart && !act.hasActualEnd) {
+                    if (currentSecs >= act.scheduledEnd) {
+                        act.row.classList.add('flash-danger');
+                    } else if (currentSecs >= act.scheduledEnd - fiveMin) {
+                        act.row.classList.add('act-live-ending');
                     } else {
-                        row.classList.add('act-live');
+                        act.row.classList.add('act-live');
                     }
                 }
-            });
+            }
         },
 
-        updateNowPlaying() {
+        updateNowPlaying(currentSecs, acts) {
             const section = document.getElementById('now-playing-section');
             if (!section) return;
-
-            const currentSeconds = this.timeToSeconds(this.currentTime);
-            const actRows = document.querySelectorAll('.act-row');
 
             let nowPlaying = null;
             let upNext = null;
@@ -210,43 +212,36 @@ function scheduleApp() {
             let shouldBePlayingNow = null;
             let nextUpcoming = null;
 
-            for (const row of actRows) {
-                const actName = row.querySelector('.act-name').textContent;
-                const scheduledStart = row.dataset.scheduledStart;
-                const scheduledEnd = row.dataset.scheduledEnd;
-                const hasActualStart = row.dataset.actualStart !== '';
-                const hasActualEnd = row.dataset.actualEnd !== '';
+            for (const act of acts) {
+                const actName = act.row.querySelector('.act-name').textContent;
 
-                const startSeconds = this.timeToSeconds(scheduledStart);
-                const endSeconds = this.timeToSeconds(scheduledEnd);
-
-                if (hasActualStart && !hasActualEnd) {
+                if (act.hasActualStart && !act.hasActualEnd) {
                     nowPlaying = actName;
-                    const remaining = endSeconds - currentSeconds;
+                    const remaining = act.scheduledEnd - currentSecs;
                     countdown = this.formatCountdown(remaining);
                     isOvertime = remaining < 0;
                     break;
                 }
 
-                if (hasActualEnd) continue;
+                if (act.hasActualEnd) continue;
 
-                if (!hasActualStart && currentSeconds >= startSeconds && currentSeconds < endSeconds) {
-                    shouldBePlayingNow = { name: actName, startSeconds, endSeconds };
+                if (!act.hasActualStart && currentSecs >= act.scheduledStart && currentSecs < act.scheduledEnd) {
+                    shouldBePlayingNow = { name: actName, startSecs: act.scheduledStart, endSecs: act.scheduledEnd };
                 }
 
-                if (!hasActualStart && currentSeconds < startSeconds && !nextUpcoming) {
-                    nextUpcoming = { name: actName, startSeconds };
+                if (!act.hasActualStart && currentSecs < act.scheduledStart && !nextUpcoming) {
+                    nextUpcoming = { name: actName, startSecs: act.scheduledStart };
                 }
             }
 
             if (!nowPlaying && shouldBePlayingNow) {
                 upNext = shouldBePlayingNow.name;
-                const lateBy = currentSeconds - shouldBePlayingNow.startSeconds;
+                const lateBy = currentSecs - shouldBePlayingNow.startSecs;
                 countdown = this.formatCountdown(-lateBy);
                 isLateStart = true;
             } else if (!nowPlaying && nextUpcoming) {
                 upNext = nextUpcoming.name;
-                countdown = this.formatCountdown(nextUpcoming.startSeconds - currentSeconds);
+                countdown = this.formatCountdown(nextUpcoming.startSecs - currentSecs);
                 isLateStart = false;
             }
 
@@ -273,6 +268,20 @@ function scheduleApp() {
                     </div>`;
             } else {
                 section.innerHTML = '';
+            }
+        },
+
+        updateCountdowns(currentSecs, acts) {
+            for (const act of acts) {
+                const el = act.row.querySelector('.act-countdown');
+                if (!el) continue;
+
+                if (act.hasActualStart || act.hasActualEnd || currentSecs >= act.scheduledStart) {
+                    el.textContent = '';
+                } else {
+                    const remaining = act.scheduledStart - currentSecs;
+                    el.textContent = '[Starts in ' + this.formatCountdown(remaining) + ']';
+                }
             }
         },
 

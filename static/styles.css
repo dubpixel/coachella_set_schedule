@@ -356,6 +356,14 @@ body {
     margin-left: 8px;
 }
 
+.act-countdown {
+    margin-left: 8px;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    color: #66bb6a;
+    vertical-align: 1px;
+}
+
 .act-variance {
     margin-top: 4px;
     font-size: 0.75rem;

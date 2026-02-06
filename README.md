@@ -43,6 +43,7 @@ pkill -f "uvicorn main:app"
 - Real-time sync across all clients via WebSocket
 - View-only mode for spectators, edit mode for operators
 - Hide/show completed acts toggle
+- Per-act `[Starts in X:XX]` countdown for upcoming acts
 - Mobile-friendly dark theme UI
 - Google Sheets integration with automatic polling (every 30 seconds)
 - Displays active worksheet name in the UI
