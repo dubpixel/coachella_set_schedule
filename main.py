@@ -84,7 +84,7 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     """Serve favicon from project root."""
-    return FileResponse("fav_icon.png")
+    return FileResponse("favicon.ico")
 
 
 def get_template_context(request: Request = None) -> dict:
